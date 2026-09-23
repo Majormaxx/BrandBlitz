@@ -95,6 +95,19 @@ function futureDate(daysAhead: number): string {
   return d.toISOString();
 }
 
+// Progress
+// Seeding thousands of rows can take minutes; overwrite in-place so the user
+// sees live progress instead of a silent wait.
+
+function progress(done: number, total: number, label: string): void {
+  const pct = Math.round((done / total) * 100);
+  process.stdout.write(`\r    ${label}: ${done}/${total} (${pct}%)    `);
+}
+
+function progressEnd(): void {
+  process.stdout.write("\n");
+}
+
 // Reset
 
 async function resetFixtures(): Promise<void> {
@@ -142,7 +155,8 @@ async function seedUsers(): Promise<Record<string, string>> {
   }
 
   // Players (46)
-  for (let i = 1; i <= 46; i++) {
+  const TOTAL_PLAYERS = 46;
+  for (let i = 1; i <= TOTAL_PLAYERS; i++) {
     const email = `seed-player-${i}@brandblitz.test`;
     const league = rngChoice(["bronze", "silver", "gold", null, null, null]);
     const [row] = await sql<{ id: string }>(
@@ -153,7 +167,11 @@ async function seedUsers(): Promise<Record<string, string>> {
       [email, `Player ${i}`, `seed_player_${i}`, league]
     );
     ids[`player_${i}`] = row.id;
+    if (i % 10 === 0 || i === TOTAL_PLAYERS) {
+      progress(i, TOTAL_PLAYERS, "players");
+    }
   }
+  progressEnd();
 
   console.log(`    Created/found ${Object.keys(ids).length} users.`);
   return ids;
@@ -264,8 +282,9 @@ async function seedSessions(
     .map(([, v]) => v);
 
   let inserted = 0;
+  const TOTAL_SESSIONS = 200;
 
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < TOTAL_SESSIONS; i++) {
     const userId = rngChoice(playerIds);
     const challengeId = rngChoice(challengeIds);
     const isFlagged = rng() < 0.1; // ~10% flagged
@@ -320,7 +339,12 @@ async function seedSessions(
         );
       }
     }
+
+    if ((i + 1) % 25 === 0 || i === TOTAL_SESSIONS - 1) {
+      progress(i + 1, TOTAL_SESSIONS, "sessions");
+    }
   }
+  progressEnd();
 
   console.log(`    Inserted ${inserted} sessions (target 200, deduped by user+challenge).`);
 }
