@@ -9,6 +9,7 @@ Express 5 REST API for BrandBlitz. Handles authentication, game sessions, scorin
 - [Overview](#overview)
 - [Directory Structure](#directory-structure)
 - [Getting Started](#getting-started)
+- [Operational Scripts](#operational-scripts)
 - [Environment Variables](#environment-variables)
 - [API Reference](#api-reference)
   - [Auth](#auth-routes)
@@ -109,6 +110,47 @@ pnpm --filter @brandblitz/api dev:worker
 The API listens on `PORT` (default `3001`). In the full Docker stack, Nginx proxies `/api/*` → `http://api:3001/`.
 
 If you are applying schema changes locally, run `pnpm --filter @brandblitz/api migrate`. The dry-run form is `pnpm --filter @brandblitz/api migrate:dryrun`.
+
+---
+
+## Operational Scripts
+
+Dev-time CLI helpers, all run from the monorepo root via `pnpm --filter @brandblitz/api <script>`:
+
+### `seed`
+
+Populates the database with deterministic local fixtures (50 users, 3 brands, 6
+challenges, 200 game sessions). Idempotent — safe to re-run.
+
+```bash
+pnpm --filter @brandblitz/api seed                 # seed once
+pnpm --filter @brandblitz/api seed -- --reset      # wipe seed fixtures, then re-seed
+```
+
+Set `SEED_DEV=1` to auto-seed on `docker compose up` (see `docker-compose.override.yml`).
+
+### `db:reset`
+
+Fully resets local PostgreSQL: drops and recreates the schema, reapplies every
+migration, and (with `--seed`) re-seeds the fixtures.
+
+```bash
+pnpm --filter @brandblitz/api db:reset                 # wipe + re-migrate
+pnpm --filter @brandblitz/api db:reset --seed          # ...and re-seed
+pnpm db:reset -- --seed                                # same from the monorepo root
+```
+
+This wipes **all** data — it refuses non-local `DATABASE_URL` hosts unless `--force` is passed.
+
+### `admin:grant`
+
+Grants the `admin` role to an existing user by email:
+
+```bash
+pnpm --filter @brandblitz/api admin:grant someone@example.com
+```
+
+Prints the granted user's email and id on success, or errors if the user does not exist.
 
 ---
 

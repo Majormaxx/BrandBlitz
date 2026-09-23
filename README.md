@@ -435,6 +435,15 @@ SEED_DEV=1 docker compose up
 
 Set `SEED_DEV=1` in your shell or `.env` and the API container will run the seed script before starting. This is a no-op if fixtures already exist.
 
+**Reset the local database and re-seed from scratch:**
+
+```bash
+pnpm db:reset                 # drop all data, reapply migrations
+pnpm db:reset -- --seed       # ...and re-seed fixtures
+```
+
+See [`apps/api/README.md`](./apps/api/README.md#operational-scripts) for other dev CLI helpers (e.g. `admin:grant` to promote a user to admin).
+
 ---
 
 ## Environment Variables
