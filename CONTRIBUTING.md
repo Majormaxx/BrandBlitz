@@ -287,6 +287,10 @@ pnpm --filter @brandblitz/api seed
 # pnpm --filter @brandblitz/api seed -- --reset
 # Or use SEED_DEV=1 to auto-seed on docker compose up (see docker-compose.override.yml)
 
+# 4c. (Optional) Fully reset local Postgres — drop all data, reapply migrations, optionally re-seed:
+#     pnpm db:reset               # wipe + re-migrate
+#     pnpm db:reset -- --seed     # ...and re-seed fixtures
+
 # 5. Start all apps (Turborepo parallel)
 pnpm dev
 

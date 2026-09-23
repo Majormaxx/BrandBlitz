@@ -101,7 +101,9 @@ function futureDate(daysAhead: number): string {
 
 function progress(done: number, total: number, label: string): void {
   const pct = Math.round((done / total) * 100);
-  process.stdout.write(`\r    ${label}: ${done}/${total} (${pct}%)    `);
+  process.stdout.write(`\r    ${label}: ${done}/${total} (${pct}%)    `, () => {
+    // Ensure the write is flushed so progress renders live even when stdout is piped (e.g. CI or `tee`).
+  });
 }
 
 function progressEnd(): void {
