@@ -313,6 +313,7 @@ brandblitz/
 - **Rust** + Stellar CLI (smart contract work only)
   - `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
   - `cargo install --locked stellar-cli@25 --features opt`
+- **Go** (only needed for `pnpm docs:db`) — [install instructions](https://go.dev/doc/install)
 
 ---
 

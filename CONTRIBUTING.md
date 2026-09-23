@@ -103,33 +103,7 @@ Commits that do not follow Conventional Commits will fail the commit-message lin
 
 ### PR Description Template
 
-```markdown
-## What
-
-Short description of the change.
-
-## Why
-
-Motivation or the problem being solved.
-
-## How
-
-Approach taken, notable design decisions, alternatives rejected.
-
-## Test plan
-
-- [ ] Unit tests added / updated
-- [ ] Manual smoke test: describe what you clicked/ran
-
-## Checklist
-
-- [ ] `pnpm type-check` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm test` passes
-- [ ] `.env.example` updated (if new env vars added)
-
-Closes #N
-```
+GitHub auto-populates new PRs with this template from [`.github/PULL_REQUEST_TEMPLATE.md`](./.github/PULL_REQUEST_TEMPLATE.md) — no need to copy it manually.
 
 ---
 
