@@ -354,6 +354,14 @@ cp .env.example .env  # update DATABASE_URL, REDIS_URL to localhost
 pnpm dev  # Turborepo runs all packages in parallel
 ```
 
+If you enable TLS for MinIO locally, generate the self-signed cert before starting the stack:
+
+```bash
+pnpm minio:certs
+```
+
+See [`docs/runbooks/rotate-minio-certs.md`](./docs/runbooks/rotate-minio-certs.md) for details.
+
 ---
 
 ## Docker Compose Files
@@ -513,6 +521,21 @@ The Playwright suite lives in [`e2e/`](./e2e) and targets the live Docker dev st
 ```bash
 docker compose up -d --build
 pnpm e2e
+```
+
+### Running a single spec
+
+Iterating on one flaky test doesn't require running the whole suite — pass the spec path as an extra argument:
+
+```bash
+pnpm e2e e2e/tests/login-popup-blocked.spec.ts
+```
+
+Any Playwright flags work alongside the filter:
+
+```bash
+pnpm e2e e2e/tests/login-popup-blocked.spec.ts --headed   # watch the browser while it runs
+pnpm e2e e2e/tests/login-popup-blocked.spec.ts --debug    # open the Playwright Inspector / debugger
 ```
 
 What it covers:
