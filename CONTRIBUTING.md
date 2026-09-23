@@ -299,8 +299,10 @@ pnpm install
 
 # 3. Copy and configure environment
 cp .env.example .env
-# Fill in JWT_SECRET, NEXTAUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
-# STELLAR_HOT_WALLET_SECRET, and PHONE_HASH_SALT at minimum.
+pnpm setup:secrets
+# Auto-generates JWT_SECRET, NEXTAUTH_SECRET, WEBHOOK_SECRET, etc. — skips already-set values in existing .env.
+# Fill in GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+# STELLAR_HOT_WALLET_SECRET, and PHONE_HASH_SALT at minimum if not already set.
 
 # 4. Start infrastructure
 docker compose --profile infra up
