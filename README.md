@@ -20,6 +20,7 @@
 - [Prerequisites](#prerequisites)
 - [Quick Start (Docker)](#quick-start-docker)
 - [Quick Start (Local)](#quick-start-local)
+- [Codespaces](#codespaces)
 - [Docker Compose Files](#docker-compose-files)
 - [Running Tests](#running-tests)
 - [Environment Variables](#environment-variables)
@@ -355,6 +356,23 @@ cp .env.example .env  # update DATABASE_URL, REDIS_URL to localhost
 pnpm dev  # Turborepo runs all packages in parallel
 ```
 
+Tip: `make dev` wraps the infra + migrate + `pnpm dev` sequence above — see [Workspace Scripts](#workspace-scripts) for the other `make` targets.
+
+### Seed fixtures
+
+Starting from an empty database makes it hard to exercise any game flow, so seed deterministic fixtures first:
+
+```bash
+# Idempotent default — inserts only the missing fixture rows; safe to re-run
+pnpm --filter @brandblitz/api seed
+
+# --reset — first truncates every seed-* fixture row (users, brands, challenges,
+# sessions, round scores, fraud flags, payouts), then re-seeds from scratch
+pnpm --filter @brandblitz/api seed -- --reset
+```
+
+The default run never deletes existing data; `--reset` wipes the seed-owned rows listed above (it leaves non-seed data alone) before re-inserting. The exact truncation list and fixture definitions live in [`apps/api/scripts/seed.ts`](./apps/api/scripts/seed.ts).
+
 If you enable TLS for MinIO locally, generate the self-signed cert before starting the stack:
 
 ```bash
@@ -362,6 +380,27 @@ pnpm minio:certs
 ```
 
 See [`docs/runbooks/rotate-minio-certs.md`](./docs/runbooks/rotate-minio-certs.md) for details.
+
+---
+
+## Codespaces
+
+A one-click environment for GitHub Codespaces and VS Code Dev Containers lives in [`.devcontainer/devcontainer.json`](./.devcontainer/devcontainer.json).
+
+Opening the repository in a Codespace (or running **Dev Containers: Reopen in Container** in VS Code) will:
+
+- Boot a Node.js 22 image and install **pnpm 10.33.0** — the version pinned by the root `packageManager` field
+- Forward the dev ports: **3000** (web), **3001** (api), **5432** (Postgres), **6379** (Redis), **9000** (MinIO)
+- Run `docker compose up -d postgres redis minio minio-setup` via `postCreateCommand`, so the infrastructure containers are up when the dev container finishes creating
+
+Then finish setup inside the container:
+
+```bash
+cp .env.example .env                          # fill in the required secrets
+pnpm --filter @brandblitz/api migrate         # apply migrations
+pnpm --filter @brandblitz/api seed            # load fixtures (add -- --reset to wipe first)
+pnpm dev                                      # or: make dev
+```
 
 ---
 
@@ -746,6 +785,24 @@ pnpm lint         # Lint all packages
 pnpm type-check   # TypeScript type-check everything
 pnpm format       # Prettier format all .ts/.tsx/.json files
 pnpm clean        # Remove all build artifacts and node_modules
+```
+
+### Makefile targets
+
+The repo root [`Makefile`](./Makefile) wraps the most common sequences as short `make` targets — an alternative to the raw `pnpm` / `docker compose` commands above. Each target is commented in the Makefile itself.
+
+| Target | What it runs |
+|---|---|
+| `make dev` | Start infra containers (health-checked), apply migrations via `migrate.ts`, then `pnpm dev` |
+| `make reset-db` | `pnpm db:reset` — drop + recreate the schema and re-apply migrations (`reset-db.ts` → `migrate.ts`) |
+| `make seed` | `pnpm --filter @brandblitz/api seed` — idempotent fixture seed (`seed.ts`); add `SEED_FLAGS="-- --reset"` to truncate first |
+| `make test` | `pnpm test` |
+| `make clean` | `pnpm clean` — build artifacts + `node_modules` |
+
+```bash
+make dev        # infra + migrate + dev servers
+make reset-db   # wipe local DB, then:
+make seed       # re-seed fixtures
 ```
 
 ---

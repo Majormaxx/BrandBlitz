@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "tsx --env-file-if-exists ../../.env watch src/index.ts",
     "dev:worker": "tsx --env-file-if-exists ../../.env watch src/worker.ts",
+    "dev:openapi": "tsx scripts/gen-openapi.ts --watch",
     "build": "tsup",
     "start": "node dist/index.js",
     "start:worker": "node dist/worker.js",
