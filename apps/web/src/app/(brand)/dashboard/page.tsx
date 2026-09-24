@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { formatUsdc } from "@/lib/format";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/lib/toast";
 
 interface ChallengeStats {
@@ -115,7 +116,55 @@ export default function DashboardPage() {
   }
 
   if (loading) {
-    return null;
+    return (
+      <main className="mx-auto max-w-5xl px-6 py-12">
+        <div className="mb-8 flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <Skeleton className="h-9 w-28" />
+        </div>
+        <div className="space-y-6">
+          {[0, 1].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Skeleton className="h-12 w-12 rounded-lg" />
+                    <div className="space-y-1">
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Skeleton className="h-8 w-28" />
+                    <Skeleton className="h-8 w-32" />
+                    <Skeleton className="h-8 w-16" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-9 gap-4 border-b border-[var(--border)] pb-2">
+                    {Array.from({ length: 9 }).map((_, ci) => (
+                      <Skeleton key={ci} className="h-4 w-full" />
+                    ))}
+                  </div>
+                  {[0, 1].map((row) => (
+                    <div key={row} className="grid grid-cols-9 gap-4">
+                      {Array.from({ length: 9 }).map((_, ci) => (
+                        <Skeleton key={ci} className="h-4 w-full" />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </main>
+    );
   }
 
   return (

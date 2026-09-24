@@ -41,6 +41,7 @@ export default function ChallengesDiscoveryPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [requerying, setRequerying] = useState(false);
   const [failed, setFailed] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -70,8 +71,12 @@ export default function ChallengesDiscoveryPage() {
     [buildParams]
   );
 
-  const loadInitial = useCallback(async () => {
-    setLoading(true);
+  const loadInitial = useCallback(async (isRequery = false) => {
+    if (isRequery) {
+      setRequerying(true);
+    } else {
+      setLoading(true);
+    }
     setFailed(false);
     try {
       const { page, nextCursor: nc } = await loadPage();
@@ -81,11 +86,14 @@ export default function ChallengesDiscoveryPage() {
       setFailed(true);
     } finally {
       setLoading(false);
+      setRequerying(false);
     }
   }, [loadPage]);
 
+  const isFirstLoad = !challenges.length && !failed;
   useEffect(() => {
-    void loadInitial();
+    void loadInitial(!isFirstLoad);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadInitial]);
 
   const loadMore = useCallback(async () => {
@@ -119,12 +127,13 @@ export default function ChallengesDiscoveryPage() {
 
       {/* Filter controls */}
       <div className="mb-6 flex flex-wrap items-end gap-3">
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           {(["all", "active", "upcoming", "ended"] as StatusFilter[]).map((s) => (
             <button
               key={s}
+              disabled={requerying}
               onClick={() => setStatusFilter(s)}
-              className={`rounded-full border px-3 py-1 text-sm capitalize transition-colors ${
+              className={`rounded-full border px-3 py-1 text-sm capitalize transition-colors disabled:opacity-50 ${
                 statusFilter === s
                   ? "border-[var(--primary)] bg-[var(--primary)] text-white"
                   : "border-[var(--border)] hover:border-[var(--primary)]"
@@ -133,6 +142,11 @@ export default function ChallengesDiscoveryPage() {
               {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
           ))}
+          {requerying && (
+            <span className="text-xs text-[var(--muted-foreground)] animate-pulse">
+              Updating…
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-1">
@@ -142,9 +156,10 @@ export default function ChallengesDiscoveryPage() {
             min="0"
             step="0.01"
             value={minPool}
+            disabled={requerying}
             onChange={(e) => setMinPool(e.target.value)}
             placeholder="e.g. 100"
-            className="w-28 rounded border border-[var(--border)] bg-transparent px-2 py-1 text-sm"
+            className="w-28 rounded border border-[var(--border)] bg-transparent px-2 py-1 text-sm disabled:opacity-50"
           />
         </div>
 
@@ -153,8 +168,9 @@ export default function ChallengesDiscoveryPage() {
           <input
             type="date"
             value={endBefore}
+            disabled={requerying}
             onChange={(e) => setEndBefore(e.target.value)}
-            className="rounded border border-[var(--border)] bg-transparent px-2 py-1 text-sm"
+            className="rounded border border-[var(--border)] bg-transparent px-2 py-1 text-sm disabled:opacity-50"
           />
         </div>
 
@@ -169,7 +185,7 @@ export default function ChallengesDiscoveryPage() {
       </div>
 
       {/* Results */}
-      {loading ? (
+      {loading && !requerying ? (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i} className="animate-pulse">
@@ -196,7 +212,7 @@ export default function ChallengesDiscoveryPage() {
           )}
         </div>
       ) : (
-        <>
+        <div className={requerying ? "pointer-events-none opacity-50 transition-opacity" : "transition-opacity"}>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {challenges.map((c, index) => {
               const remaining = timeRemaining(c.ends_at ?? null);
@@ -267,7 +283,7 @@ export default function ChallengesDiscoveryPage() {
               You&apos;ve seen all {challenges.length} challenge{challenges.length !== 1 ? "s" : ""}
             </p>
           )}
-        </>
+        </div>
       )}
     </main>
   );
