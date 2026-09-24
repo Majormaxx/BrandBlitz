@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -188,7 +189,30 @@ export default function AdminFraudPage() {
   // ─── Render ──────────────────────────────────────────────────────────────
 
   if (status === "loading" || (status === "authenticated" && userRole !== "admin")) {
-    return null;
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-8">
+        <div className="mb-6 flex items-center justify-between">
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <Skeleton className="mb-6 h-14 w-full rounded-lg" />
+        <div className="rounded-lg border">
+          <div className="border-b px-6 py-4">
+            <Skeleton className="h-5 w-28" />
+          </div>
+          <div className="divide-y">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3">
+                <Skeleton className="h-4 w-4" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="ml-auto h-4 w-16" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
