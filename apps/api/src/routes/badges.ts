@@ -140,7 +140,8 @@ router.get("/", authenticateOptional, async (req, res) => {
  * Admin-only: flush the badges definitions cache.
  */
 router.post("/flush", authenticate, requireAdmin, async (_req, res) => {
-  await redis.del(BADGES_CACHE_KEY);
+  // UNLINK reclaims memory off the event loop, so a flush never stalls concurrent reads.
+  await redis.unlink(BADGES_CACHE_KEY);
   res.status(204).send();
 });
 
