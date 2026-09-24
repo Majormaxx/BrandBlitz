@@ -8,6 +8,7 @@ import { gdprErasureQueue } from "../../queues/gdpr-erasure.queue";
 import { referralBonusQueue } from "../../queues/referral-bonus.queue";
 import { sessionTimeoutQueue } from "../../queues/session-timeout.queue";
 import { archiveQueue } from "../../queues/archive.queue";
+import { withCoalescing } from "../../lib/cache";
 
 const router = Router();
 router.use(authenticate);
@@ -24,30 +25,37 @@ const queues: Record<string, Queue> = {
 
 router.get("/", async (_req, res) => {
   res.set("Cache-Control", "no-store");
-  const entries = await Promise.all(
-    Object.entries(queues).map(async ([name, queue]) => {
-      try {
-        const [counts, logs] = await Promise.all([
-          queue.getJobCounts("waiting", "active", "completed", "failed", "delayed"),
-          queue.getJobLogs("lag"),
-        ]);
-        return [
-          name,
-          {
-            waiting: counts.waiting ?? 0,
-            active: counts.active ?? 0,
-            completed: counts.completed ?? 0,
-            failed: counts.failed ?? 0,
-            delayed: counts.delayed ?? 0,
-            lag: logs.count,
-          },
-        ] as const;
-      } catch {
-        return [name, { error: "unavailable" }] as const;
-      }
-    })
+  const queuesData = await withCoalescing(
+    "admin:queue_stats",
+    5,
+    async () => {
+      const entries = await Promise.all(
+        Object.entries(queues).map(async ([name, queue]) => {
+          try {
+            const [counts, logs] = await Promise.all([
+              queue.getJobCounts("waiting", "active", "completed", "failed", "delayed"),
+              queue.getJobLogs("lag"),
+            ]);
+            return [
+              name,
+              {
+                waiting: counts.waiting ?? 0,
+                active: counts.active ?? 0,
+                completed: counts.completed ?? 0,
+                failed: counts.failed ?? 0,
+                delayed: counts.delayed ?? 0,
+                lag: logs.count,
+              },
+            ] as const;
+          } catch {
+            return [name, { error: "unavailable" }] as const;
+          }
+        })
+      );
+      return Object.fromEntries(entries);
+    }
   );
-  res.json({ queues: Object.fromEntries(entries) });
+  res.json({ queues: queuesData });
 });
 
 export default router;
