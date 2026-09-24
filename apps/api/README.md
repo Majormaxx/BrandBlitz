@@ -152,6 +152,30 @@ pnpm --filter @brandblitz/api admin:grant someone@example.com
 
 Prints the granted user's email and id on success, or errors if the user does not exist.
 
+### `gen:openapi`
+
+Regenerates [`docs/openapi.yml`](../../docs/openapi.yml) from the zod route
+schemas registered in `src/routes/openapi/*.openapi.ts`. Run it after any
+route/schema change and commit the diff — CI (`gen:openapi:check`) fails when
+the committed spec drifts from the actual routes.
+
+```bash
+pnpm --filter @brandblitz/api gen:openapi              # one-shot regeneration
+pnpm --filter @brandblitz/api gen:openapi -- --watch   # regenerate on every change under src/routes/
+```
+
+To keep `docs/openapi.yml` in sync while you develop, run the watcher (the
+`dev:openapi` script) alongside the API dev server in a second terminal:
+
+```bash
+pnpm --filter @brandblitz/api dev          # terminal 1 — API dev server (tsx watch)
+pnpm --filter @brandblitz/api dev:openapi  # terminal 2 — rewrites docs/openapi.yml on route changes
+```
+
+`--watch` uses `fs.watch` (recursive) on `src/routes/` and respawns the
+generator in a fresh process per change, so its output is byte-identical to a
+one-shot run. Stop it with `Ctrl-C`.
+
 ---
 
 ## Environment Variables
