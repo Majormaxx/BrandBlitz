@@ -33,6 +33,7 @@ export interface Challenge {
   reported_count: number;
   deleted_at: string | null;
   created_at: string;
+  challenge_license_id?: string | null;
 }
 
 export interface ChallengeQuestion {
@@ -57,11 +58,13 @@ export async function createChallenge(data: {
   poolAmountUsdc: string;
   maxPlayers?: number;
   endsAt?: string;
+  licenseId?: string;
 }): Promise<Challenge> {
   const result = await query<Challenge>(
     `INSERT INTO challenges
-       (brand_id, challenge_id, deposit_memo, pool_amount_stroops, max_players, ends_at)
-     VALUES ($1,$2,$3,$4,$5,$6)
+       (brand_id, challenge_id, deposit_memo, pool_amount_stroops, max_players, ends_at,
+        challenge_license_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
      RETURNING *, (pool_amount_stroops::numeric / 10000000)::numeric(20,7)::text AS pool_amount_usdc`,
     [
       data.brandId,
@@ -70,6 +73,7 @@ export async function createChallenge(data: {
       usdcToStroops(data.poolAmountUsdc),
       data.maxPlayers ?? null,
       data.endsAt ?? null,
+      data.licenseId ?? null,
     ]
   );
   return result.rows[0];
@@ -552,7 +556,10 @@ export async function incrementDepositConfirmations(
   challengeId: string,
   requiredConfirmations: number
 ): Promise<{ confirmations: number; activated: boolean }> {
-  const result = await query<{ deposit_confirmations: number; status: ChallengeStatus }>(
+  const result = await query<{
+    deposit_confirmations: number;
+    status: ChallengeStatus;
+  }>(
     `UPDATE challenges
      SET deposit_confirmations = LEAST(deposit_confirmations + 1, $2),
          status = CASE 
