@@ -87,6 +87,8 @@ export function BadgeUnlockModal({ badges, onClose }: BadgeUnlockModalProps) {
           inset: 0,
           background: "rgba(0,0,0,0.5)",
           zIndex: 999,
+          opacity: visible ? 1 : 0,
+          transition: "opacity 300ms ease-out",
         }}
       />
       {/* Modal */}

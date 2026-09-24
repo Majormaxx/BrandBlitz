@@ -84,7 +84,16 @@ export function StreakHeatmap({ activity }: StreakHeatmapProps) {
 
   const weeks = getCellGroupsByWeek();
 
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
   const displayWeeks = isMobile ? weeks.slice(-26) : weeks;
 
   const handleCellHover = (
@@ -93,7 +102,16 @@ export function StreakHeatmap({ activity }: StreakHeatmapProps) {
   ) => {
     if (!date) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    setTooltipPos({ x: rect.left, y: rect.top });
+    let tooltipX = rect.left + rect.width / 2; // Center tooltip initially
+    const tooltipWidth = 150; // Estimated tooltip width
+    const padding = 10; // Padding from screen edge
+
+    if (tooltipX + tooltipWidth / 2 + padding > window.innerWidth) {
+      tooltipX = window.innerWidth - tooltipWidth / 2 - padding;
+    } else if (tooltipX - tooltipWidth / 2 - padding < 0) {
+      tooltipX = tooltipWidth / 2 + padding;
+    }
+    setTooltipPos({ x: tooltipX, y: rect.top });
     setHoveredDate(date);
   };
 
