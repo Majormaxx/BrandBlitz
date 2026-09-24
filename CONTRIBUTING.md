@@ -14,6 +14,9 @@ Thank you for contributing to BrandBlitz — the skill-validated attention marke
 - [Drips Wave 4 Rules](#drips-wave-4-rules)
 - [Issue Templates](#issue-templates)
 - [Operations Runbooks](#operations-runbooks)
+- [Pre-commit Hook](#pre-commit-hook)
+- [Gitleaks false positives](#gitleaks-false-positives)
+- [Bundle Size](#bundle-size)
 - [Getting Started](#getting-started)
 
 ---
@@ -204,6 +207,25 @@ Link your new runbook from the `docs/runbooks/README.md` index.
 
 ---
 
+## Pre-commit Hook
+
+`pnpm install` runs `husky` (the root `prepare` script), which installs
+[`.husky/pre-commit`](./.husky/pre-commit). The hook runs two checks on every commit:
+
+1. **Prettier (staged files only).** Runs `prettier --check` on the staged `*.ts`, `*.tsx`, `*.json`,
+   and `*.md` files (the same globs and `--ignore-path .gitignore` as `pnpm format`). It never
+   scans the whole repo. If a file isn't formatted, the commit is blocked with a message to run
+   `pnpm format`. To format only the files you touched, run
+   `pnpm exec prettier --write <file>...`. Then re-stage and commit again.
+2. **Gitleaks.** Runs `pnpm gitleaks:pre-commit` on the staged diff (see
+   [Gitleaks false positives](#gitleaks-false-positives) below).
+
+Some existing files predate the hook and aren't Prettier-formatted yet. The first time you stage
+one, the hook asks you to format the whole file. Commit that reformat with your change, or in its
+own `style:` commit if the diff gets noisy.
+
+---
+
 ## Gitleaks false positives
 
 Commits are blocked by [`scripts/gitleaks.mjs`](../scripts/gitleaks.mjs) via the
@@ -258,6 +280,27 @@ pre-commit hook (`scripts/gitleaks.mjs`) will re-run automatically.
 See also: [`scripts/gitleaks.mjs`](../scripts/gitleaks.mjs) (binary download + invocation),
 [`.gitleaks.toml`](../.gitleaks.toml) (rule definitions), and
 [`docs/runbooks/leaked-secret.md`](../docs/runbooks/leaked-secret.md) (what to do if a real secret leaked).
+
+---
+
+## Bundle Size
+
+If your PR touches `apps/web`, check the bundle budget locally before pushing. Run it from the
+repo root, after a production build:
+
+```bash
+pnpm --filter @brandblitz/web build   # prerequisite: writes apps/web/.next/static/chunks
+pnpm check:bundle                     # scripts/check-bundle-budget.mjs vs docs/perf/bundle-baseline.txt
+```
+
+The check prints `::warning::Bundle size regressed by more than 10%!` when the built chunks' total
+gzip size is more than 10% over the committed baseline. It only warns and does not fail the
+command.
+
+**Troubleshooting:** [`docs/perf/README.md`](./docs/perf/README.md#troubleshooting-a-bundle-size-warning)
+explains where `scripts/generate-bundle-report.mjs` sends its report (stdout, no file), what the
+columns mean, and how to diff it against the baseline to find the chunk that grew. See also
+[`apps/web/README.md` → Bundle size check](./apps/web/README.md#bundle-size-check).
 
 ---
 
