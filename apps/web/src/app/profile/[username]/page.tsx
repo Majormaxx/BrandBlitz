@@ -397,7 +397,12 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
                             month: "short",
                             day: "numeric",
                           })
-                        : "—"}
+                        : (
+                          <span title="Not completed yet — session still in progress">
+                            <span aria-hidden="true">—</span>
+                            <span className="sr-only">Not completed yet</span>
+                          </span>
+                        )}
                     </td>
                   </tr>
                 ))}

@@ -327,6 +327,38 @@ Each workspace exposes `type-check:watch` as `tsc --watch --noEmit` (see `apps/a
 and `apps/web/package.json`). The existing full `pnpm type-check` (`turbo run type-check`) is unchanged
 and remains the CI gate — use the watch variant only for local iteration.
 
+### Running tasks for a single package
+
+Scope any `turbo.json` task (`build`, `dev`, `lint`, `test`, `type-check`) to one workspace
+instead of running it across the whole monorepo.
+
+| Workspace | Package name | Scripts |
+|---|---|---|
+| `apps/api` | `@brandblitz/api` | build, dev, lint, test, type-check |
+| `apps/web` | `@brandblitz/web` | build, dev, lint, test, type-check |
+| `apps/deposit-monitor` | `@brandblitz/deposit-monitor` | build, dev, lint, test, type-check |
+| `packages/config` | `@brandblitz/config` | build, dev, type-check |
+| `packages/stellar` | `@brandblitz/stellar` | build, dev, lint, test, type-check |
+| `packages/storage` | `@brandblitz/storage` | build, dev, lint, test, type-check |
+
+```bash
+# turbo: honours turbo.json dependsOn (e.g. builds ^dependencies first) and caching
+pnpm turbo run build --filter=@brandblitz/api
+pnpm turbo run test --filter=@brandblitz/stellar
+pnpm turbo run lint --filter=@brandblitz/web
+
+# Include the package's workspace dependencies too
+pnpm turbo run build --filter=@brandblitz/api...
+
+# pnpm: runs the script directly in that workspace, no turbo pipeline
+pnpm --filter @brandblitz/api build
+pnpm --filter @brandblitz/storage test
+pnpm --filter @brandblitz/deposit-monitor lint
+```
+
+A task a package doesn't define (e.g. `lint` in `@brandblitz/config`) is skipped by turbo
+and errors under `pnpm --filter`.
+
 ### Common Issues
 
 | Symptom | Fix |

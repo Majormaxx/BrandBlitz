@@ -111,6 +111,8 @@ The API listens on `PORT` (default `3001`). In the full Docker stack, Nginx prox
 
 If you are applying schema changes locally, run `pnpm --filter @brandblitz/api migrate`. The dry-run form is `pnpm --filter @brandblitz/api migrate:dryrun`.
 
+To fire test requests at a running API, open [`requests.http`](./requests.http) with the VS Code REST Client extension or the JetBrains HTTP Client. It covers auth, challenges and leaderboard routes from [`docs/openapi.yml`](../../docs/openapi.yml); set `@baseUrl` and paste an access token for authenticated calls (`Authorization: Bearer <accessToken>`).
+
 ---
 
 ## Operational Scripts
