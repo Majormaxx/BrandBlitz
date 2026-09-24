@@ -115,7 +115,14 @@ export function WarmupPhase({ challenge, apiToken, onComplete, deviceId }: Warmu
             onExpire={handleTimerExpire}
             onPausedChange={setIsPaused}
           />
-          {!unlocked && (
+          {unlocked ? (
+            <p
+              role="status"
+              className="text-center text-sm font-semibold text-green-700 mt-2 motion-safe:animate-pulse motion-reduce:animate-none"
+            >
+              <span aria-hidden="true">✓ </span>Ready!
+            </p>
+          ) : (
             <p className="text-center text-xs text-slate-500 mt-2">
               Study time remaining
             </p>
