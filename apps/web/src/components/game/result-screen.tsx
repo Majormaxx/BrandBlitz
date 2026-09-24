@@ -131,7 +131,12 @@ export function ResultScreen({
 
   async function handleShare(): Promise<void> {
     if (navigator.share) {
-      await navigator.share({ text: shareText, url: window.location.href });
+      try {
+        await navigator.share({ text: shareText, url: window.location.href });
+        setShareToast("Result shared successfully.");
+      } catch {
+        // The native share sheet was dismissed or failed — show no confirmation.
+      }
       return;
     }
 
