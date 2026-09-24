@@ -188,13 +188,20 @@ export default function ChallengesDiscoveryPage() {
       {loading && !requerying ? (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="animate-pulse">
+            // Heights mirror the loaded card: logo h-12, badge 22px, title/description
+            // line heights, remaining-time line, and h-10 button.
+            <Card key={i} className="animate-pulse" aria-hidden="true">
               <CardHeader>
-                <div className="h-12 w-32 rounded bg-[var(--muted)] mb-2" />
-                <div className="h-5 w-40 rounded bg-[var(--muted)]" />
+                <div className="flex items-center justify-between">
+                  <div className="h-12 w-32 rounded-lg bg-[var(--muted)]" />
+                  <div className="h-[22px] w-16 rounded-full bg-[var(--muted)]" />
+                </div>
+                <div className="h-4 w-40 rounded bg-[var(--muted)]" />
+                <div className="h-5 w-48 rounded bg-[var(--muted)]" />
               </CardHeader>
               <CardContent>
-                <div className="h-10 w-full rounded bg-[var(--muted)]" />
+                <div className="mb-3 h-5 w-24 rounded bg-[var(--muted)]" />
+                <div className="h-10 w-full rounded-md bg-[var(--muted)]" />
               </CardContent>
             </Card>
           ))}
