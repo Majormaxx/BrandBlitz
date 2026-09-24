@@ -63,12 +63,12 @@ export function ChallengeRound({
   }, [round]);
 
   useEffect(() => {
-    if (previousAnswerStateRef.current && !answerState) {
+    if (previousAnswerStateRef.current && !answerState && !answerError) {
       setLocalSelected(null);
       setLocalLocked(false);
     }
     previousAnswerStateRef.current = answerState;
-  }, [answerState]);
+  }, [answerState, answerError]);
 
   const handleSelect = useCallback((option: AnswerOptionKey) => {
     if (answered || disabled) return;
