@@ -56,3 +56,6 @@ data/
 *.tsbuildinfo
 
 fix.md
+.env.*
+!.env.example
+!.env.sample

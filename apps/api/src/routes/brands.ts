@@ -35,6 +35,7 @@ import { query } from "../db/index";
 import { apiLimiter, questionPreviewLimiter } from "../middleware/rate-limit";
 import { decodeCursorSafe, encodeCursor } from "../db/pagination";
 import { sanitizeSvgText } from "../lib/svg-sanitize";
+import { withCoalescing } from "../lib/cache";
 import {
   createBrandWebhook,
   getBrandWebhooks,
@@ -329,7 +330,8 @@ router.get("/:id/analytics", authenticate, async (req, res) => {
     if (isNaN(to.getTime())) throw createError("Invalid to date", 400);
   }
 
-  const analytics = await getBrandAnalytics(brand.id, from, to);
+  const cacheKey = `brand_analytics:${brand.id}:${fromParam || "all"}:${toParam || "all"}`;
+  const analytics = await withCoalescing(cacheKey, 900, () => getBrandAnalytics(brand.id, from, to));
   res.json({ analytics });
 });
 

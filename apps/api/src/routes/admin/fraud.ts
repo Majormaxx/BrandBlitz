@@ -33,7 +33,7 @@ const PatchBodySchema = z.object({
  */
 router.get("/", async (req, res) => {
   const { status, cursor, limit: pageSize } = ListQuerySchema.parse(req.query);
-  const { flags, total, nextCursor } = await getFraudFlags({ status, cursor, pageSize });
+  const { flags, nextCursor } = await getFraudFlags({ status, cursor, pageSize });
 
   res.json({
     flags: flags.map((f) => ({
@@ -60,7 +60,6 @@ router.get("/", async (req, res) => {
     })),
     pagination: {
       pageSize,
-      total,
       nextCursor,
     },
   });

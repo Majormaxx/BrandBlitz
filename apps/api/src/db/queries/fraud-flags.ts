@@ -47,11 +47,10 @@ export async function getFraudFlags(opts: {
   status?: string;
   cursor?: string;
   pageSize: number;
-}): Promise<{ flags: FraudFlagDetail[]; total: number; nextCursor: string | null }> {
+}): Promise<{ flags: FraudFlagDetail[]; nextCursor: string | null }> {
   const statusParam = opts.status ?? null;
   const cursorValues = decodeCursorSafe(opts.cursor, ["created_at", "id"]);
 
-  const countParams: unknown[] = [statusParam];
   let whereExtra = "";
   const params: unknown[] = [statusParam];
 
@@ -61,54 +60,44 @@ export async function getFraudFlags(opts: {
       "DESC",
       cursorValues.created_at,
       cursorValues.id as string,
-      3,
+      2,
     );
     whereExtra = clause;
     params.push(cursorValues.created_at, cursorValues.id);
-    countParams.push(cursorValues.created_at, cursorValues.id);
   }
 
   params.push(opts.pageSize);
 
-  const [rowsResult, countResult] = await Promise.all([
-    query<FraudFlagDetail>(
-      `SELECT
-         ff.id,
-         ff.session_id,
-         ff.user_id,
-         ff.flag_type,
-         ff.details,
-         ff.status,
-         ff.resolution_reason,
-         ff.resolved_by,
-         ff.resolved_at,
-         ff.created_at,
-         ff.updated_at,
-         u.display_name  AS user_display_name,
-         u.email         AS user_email,
-         gs.challenge_id,
-         gs.round_1_reaction_ms,
-         gs.round_2_reaction_ms,
-         gs.round_3_reaction_ms,
-         gs.flag_reasons AS session_flag_reasons,
-         gs.device_id
-       FROM fraud_flags ff
-       JOIN users        u  ON ff.user_id    = u.id
-       JOIN game_sessions gs ON ff.session_id = gs.id
-       WHERE ($1::text IS NULL OR ff.status = $1)
-       ${whereExtra}
-       ORDER BY ff.created_at DESC, ff.id DESC
-       LIMIT $${params.length}`,
-      params,
-    ),
-    query<{ count: string }>(
-      `SELECT COUNT(*) AS count
-       FROM fraud_flags
-       WHERE ($1::text IS NULL OR status = $1)
-       ${whereExtra}`,
-      countParams,
-    ),
-  ]);
+  const rowsResult = await query<FraudFlagDetail>(
+    `SELECT
+       ff.id,
+       ff.session_id,
+       ff.user_id,
+       ff.flag_type,
+       ff.details,
+       ff.status,
+       ff.resolution_reason,
+       ff.resolved_by,
+       ff.resolved_at,
+       ff.created_at,
+       ff.updated_at,
+       u.display_name  AS user_display_name,
+       u.email         AS user_email,
+       gs.challenge_id,
+       gs.round_1_reaction_ms,
+       gs.round_2_reaction_ms,
+       gs.round_3_reaction_ms,
+       gs.flag_reasons AS session_flag_reasons,
+       gs.device_id
+     FROM fraud_flags ff
+     JOIN users        u  ON ff.user_id    = u.id
+     JOIN game_sessions gs ON ff.session_id = gs.id
+     WHERE ($1::text IS NULL OR ff.status = $1)
+     ${whereExtra}
+     ORDER BY ff.created_at DESC, ff.id DESC
+     LIMIT $${params.length}`,
+    params,
+  );
 
   const flags = rowsResult.rows;
   const nextCursor: string | null =
@@ -121,7 +110,6 @@ export async function getFraudFlags(opts: {
 
   return {
     flags,
-    total: parseInt(countResult.rows[0]?.count ?? "0", 10),
     nextCursor,
   };
 }
