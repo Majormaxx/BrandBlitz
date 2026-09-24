@@ -129,6 +129,10 @@ pnpm --filter @brandblitz/api seed -- --reset      # wipe seed fixtures, then re
 
 Set `SEED_DEV=1` to auto-seed on `docker compose up` (see `docker-compose.override.yml`).
 
+The placeholder brand logos the seed references live in
+[`scripts/fixtures/`](./scripts/fixtures/README.md). That README lists each fixture file and
+explains how it relates to `seed.ts` and the root-level `scripts/seed-e2e-challenge.ts`.
+
 ### `db:reset`
 
 Fully resets local PostgreSQL: drops and recreates the schema, reapplies every
