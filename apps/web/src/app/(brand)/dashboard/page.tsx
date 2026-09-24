@@ -207,7 +207,19 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </CardHeader>
-              {brand.challenges.length > 0 && (
+              {brand.challenges.length === 0 ? (
+                <CardContent>
+                  <EmptyState
+                    title="No challenges yet"
+                    description="Launch your first challenge to start collecting brand insights."
+                    action={
+                      <Link href={`/brand/${brand.id}/challenge/new`}>
+                        <Button size="sm">Launch Challenge</Button>
+                      </Link>
+                    }
+                  />
+                </CardContent>
+              ) : (
                 <CardContent>
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[900px] text-sm">
@@ -302,3 +314,4 @@ export default function DashboardPage() {
     </main>
   );
 }
+
