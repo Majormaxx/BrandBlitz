@@ -13,6 +13,7 @@ import {
   updateBrand,
   deleteBrand,
   getBrandChallengeStats,
+  getBrandsByOwner,
 } from "../db/queries/brands";
 import { getBrandAnalytics } from "../db/queries/analytics";
 import {
@@ -51,6 +52,13 @@ import {
   getUpcomingChallengesFromTemplatesByBrandId,
   type RecurrenceRule,
 } from "../db/queries/challenge-templates";
+import {
+  acquireChallengeLicense,
+  getBrandLicenses,
+  getUsableLicense,
+  listLicenseMarketplace,
+  setChallengeLicenseOffer,
+} from "../db/queries/challenge-licenses";
 
 const router = Router();
 const PublicBrandsQuerySchema = z.object({
@@ -76,7 +84,9 @@ const BrandKitSchema = z.object({
     .string()
     .min(1)
     .max(100)
-    .refine((v) => !/<[^>]*>/.test(v), { message: "Brand name must not contain HTML tags" }),
+    .refine((v) => !/<[^>]*>/.test(v), {
+      message: "Brand name must not contain HTML tags",
+    }),
   logoKey: z.string().optional(),
   primaryColor: z
     .string()
@@ -110,7 +120,13 @@ const ChallengeSchema = z.object({
     ),
   maxPlayers: z.number().int().positive().optional(),
   endsAt: z.string().datetime(),
+  licenseId: z.string().uuid().optional(),
 });
+
+const LicenseChallengeSchema = z.object({ challengeId: z.string().uuid() }).strict();
+const LicenseOfferSchema = z
+  .object({ available: z.boolean(), feeBps: z.number().int().min(0).max(5000) })
+  .strict();
 
 const MIN_CHALLENGE_DURATION_MS = 60 * 60 * 1000;
 const CHALLENGE_DURATION_GRACE_MS = 5_000;
@@ -282,6 +298,72 @@ router.get("/", authenticate, apiLimiter, async (req, res) => {
   });
 });
 
+/** GET /brands/mine — owned brands with their challenges for the management dashboard. */
+router.get("/mine", authenticate, async (req, res) => {
+  const ownedBrands = await getBrandsByOwner(req.user!.sub);
+  const brands = await Promise.all(
+    ownedBrands.map(async (brand) => ({
+      ...toBrandApi(brand),
+      challenges: (await getChallengesByBrandId(brand.id)).map((challenge) => ({
+        id: challenge.id,
+        status: challenge.status,
+        poolAmountUsdc: challenge.pool_amount_usdc,
+        participantCount: challenge.participant_count ?? 0,
+        endsAt: challenge.ends_at,
+      })),
+    }))
+  );
+  res.json({ brands });
+});
+
+/** GET /brands/license-marketplace — challenges explicitly offered for licensing. */
+router.get("/license-marketplace", authenticate, async (req, res) => {
+  const ownedBrands = await getBrandsByOwner(req.user!.sub);
+  const offers = await listLicenseMarketplace(ownedBrands.map((brand) => brand.id));
+  res.json({ offers });
+});
+
+/** GET /brands/:id/licenses — offered, issued, and acquired licenses for a dashboard. */
+router.get("/:id/licenses", authenticate, async (req, res) => {
+  const brand = await getBrandById(req.params.id);
+  if (!brand) throw createError("Brand not found", 404);
+  if (brand.owner_user_id !== req.user!.sub) throw createError("Forbidden", 403);
+  res.json(await getBrandLicenses(brand.id));
+});
+
+/** POST /brands/:id/license-challenge — acquire an immutable fee snapshot. */
+router.post("/:id/license-challenge", authenticate, async (req, res) => {
+  const licensee = await getBrandById(req.params.id);
+  if (!licensee) throw createError("Brand not found", 404);
+  if (licensee.owner_user_id !== req.user!.sub) throw createError("Forbidden", 403);
+
+  const body = LicenseChallengeSchema.parse(req.body);
+  const license = await acquireChallengeLicense({
+    sourceChallengeId: body.challengeId,
+    licenseeBrandId: licensee.id,
+  });
+  if (!license) {
+    throw createError("Challenge is unavailable or already licensed", 409, "LICENSE_UNAVAILABLE");
+  }
+  res.status(201).json({ license });
+});
+
+/** PATCH /brands/:id/challenges/:challengeId/licensing — opt in/out for future licenses. */
+router.patch("/:id/challenges/:challengeId/licensing", authenticate, async (req, res) => {
+  const brand = await getBrandById(req.params.id);
+  if (!brand) throw createError("Brand not found", 404);
+  if (brand.owner_user_id !== req.user!.sub) throw createError("Forbidden", 403);
+  const body = LicenseOfferSchema.parse(req.body);
+  const offer = await setChallengeLicenseOffer({
+    challengeId: req.params.challengeId,
+    brandId: brand.id,
+    available: body.available,
+    feeBps: body.feeBps,
+  });
+  if (!offer) throw createError("Challenge not found", 404);
+  res.json({ offer });
+});
+
 /**
  * GET /brands/:id/distractors
  * Return up to three public-safe alternate brands for a game round.
@@ -331,7 +413,9 @@ router.get("/:id/analytics", authenticate, async (req, res) => {
   }
 
   const cacheKey = `brand_analytics:${brand.id}:${fromParam || "all"}:${toParam || "all"}`;
-  const analytics = await withCoalescing(cacheKey, 900, () => getBrandAnalytics(brand.id, from, to));
+  const analytics = await withCoalescing(cacheKey, 900, () =>
+    getBrandAnalytics(brand.id, from, to)
+  );
   res.json({ analytics });
 });
 
@@ -458,10 +542,11 @@ router.post("/:id/questions/:questionId/regenerate", authenticate, async (req, r
   if (brand.owner_user_id !== req.user!.sub) throw createError("Forbidden", 403);
 
   const { questionId } = req.params;
-  const allQuestions = await query<{ id: string; challenge_id: string; round: 1 | 2 | 3 }>(
-    "SELECT id, challenge_id, round FROM challenge_questions WHERE id = $1",
-    [questionId]
-  );
+  const allQuestions = await query<{
+    id: string;
+    challenge_id: string;
+    round: 1 | 2 | 3;
+  }>("SELECT id, challenge_id, round FROM challenge_questions WHERE id = $1", [questionId]);
   const existing = allQuestions.rows[0];
   if (!existing) throw createError("Question not found", 404);
 
@@ -580,6 +665,11 @@ router.post("/challenges", authenticate, requireCurrentTosAccepted, async (req, 
   if (!brand) throw createError("Brand not found", 404);
   if (brand.owner_user_id !== req.user!.sub) throw createError("Forbidden", 403);
 
+  const license = body.licenseId ? await getUsableLicense(body.licenseId, brand.id) : null;
+  if (body.licenseId && !license) {
+    throw createError("License not found for this brand", 422, "INVALID_LICENSE");
+  }
+
   const challengeId = randomUUID();
   const depositMemo = generateDepositMemo();
   const challenge = await createChallenge({
@@ -589,6 +679,7 @@ router.post("/challenges", authenticate, requireCurrentTosAccepted, async (req, 
     poolAmountUsdc: body.poolAmountUsdc,
     maxPlayers: body.maxPlayers,
     endsAt: body.endsAt,
+    licenseId: license?.id,
   });
 
   const distractorBrands = await getActiveDistractorBrands(body.brandId);
@@ -623,33 +714,35 @@ const RecurrenceRuleSchema: z.ZodType<RecurrenceRule> = z.enum([
   "custom",
 ]);
 
-const ChallengeTemplateSchema = z.object({
-  poolAmountUsdc: z
-    .string()
-    .regex(/^\d+(\.\d{1,7})?$/)
-    .refine(
-      (val) => {
-        const stroops = Math.round(parseFloat(val) * 10_000_000);
-        return stroops >= MIN_POOL_STROOPS;
-      },
-      {
-        message: `Pool amount must be at least 100 USDC (${MIN_POOL_STROOPS.toLocaleString()} stroops)`,
-      }
-    ),
-  maxPlayers: z.number().int().positive().optional(),
-  durationHours: z.number().int().min(1),
-  recurrenceRule: RecurrenceRuleSchema,
-  recurrenceCron: z.string().optional(),
-  recurrenceTimezone: z.string().optional(),
-}).superRefine((val, ctx) => {
-  if (val.recurrenceRule === "custom" && !val.recurrenceCron) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "recurrenceCron is required for custom recurrence rule",
-      path: ["recurrenceCron"],
-    });
-  }
-});
+const ChallengeTemplateSchema = z
+  .object({
+    poolAmountUsdc: z
+      .string()
+      .regex(/^\d+(\.\d{1,7})?$/)
+      .refine(
+        (val) => {
+          const stroops = Math.round(parseFloat(val) * 10_000_000);
+          return stroops >= MIN_POOL_STROOPS;
+        },
+        {
+          message: `Pool amount must be at least 100 USDC (${MIN_POOL_STROOPS.toLocaleString()} stroops)`,
+        }
+      ),
+    maxPlayers: z.number().int().positive().optional(),
+    durationHours: z.number().int().min(1),
+    recurrenceRule: RecurrenceRuleSchema,
+    recurrenceCron: z.string().optional(),
+    recurrenceTimezone: z.string().optional(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.recurrenceRule === "custom" && !val.recurrenceCron) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "recurrenceCron is required for custom recurrence rule",
+        path: ["recurrenceCron"],
+      });
+    }
+  });
 
 const WebhookSubscriptionSchema = z.object({
   url: z.string().url("url must be a valid URL"),
@@ -675,9 +768,7 @@ router.post(
     const parsed = ChallengeTemplateSchema.safeParse(req.body);
     if (!parsed.success) {
       throw createError(
-        parsed.error.issues
-          .map((i) => `${i.path.join(".") || "body"}: ${i.message}`)
-          .join("; "),
+        parsed.error.issues.map((i) => `${i.path.join(".") || "body"}: ${i.message}`).join("; "),
         422,
         "VALIDATION_ERROR"
       );
@@ -718,27 +809,17 @@ router.get("/:id/challenge-templates", authenticate, async (req, res) => {
  * Preview upcoming auto-generated challenges (start/end times and pools)
  * derived from active templates.
  */
-router.get(
-  "/:id/challenge-templates/upcoming",
-  authenticate,
-  async (req, res) => {
-    const brand = await getBrandById(req.params.id);
-    if (!brand) throw createError("Brand not found", 404);
-    if (brand.owner_user_id !== req.user!.sub && req.user!.role !== "admin") {
-      throw createError("Forbidden", 403);
-    }
-
-    const limit = Math.min(
-      20,
-      Math.max(1, parseInt(String(req.query.limit ?? "5"), 10) || 5)
-    );
-    const upcoming = await getUpcomingChallengesFromTemplatesByBrandId(
-      brand.id,
-      limit
-    );
-    res.json({ upcoming });
+router.get("/:id/challenge-templates/upcoming", authenticate, async (req, res) => {
+  const brand = await getBrandById(req.params.id);
+  if (!brand) throw createError("Brand not found", 404);
+  if (brand.owner_user_id !== req.user!.sub && req.user!.role !== "admin") {
+    throw createError("Forbidden", 403);
   }
-);
+
+  const limit = Math.min(20, Math.max(1, parseInt(String(req.query.limit ?? "5"), 10) || 5));
+  const upcoming = await getUpcomingChallengesFromTemplatesByBrandId(brand.id, limit);
+  res.json({ upcoming });
+});
 
 /**
  * PATCH /brands/challenge-templates/:templateId/pause
