@@ -7,6 +7,7 @@
 | [`high-volume-investigation-plan.md`](./high-volume-investigation-plan.md)       | High-volume load investigation plan.                                |
 | [`metrics-overhead.md`](./metrics-overhead.md)                                   | Cost of Prometheus metrics collection.                              |
 | [`question-regeneration-concurrency.md`](./question-regeneration-concurrency.md) | Concurrency notes for question regeneration.                        |
+| [`session-start-burst-investigation.md`](./session-start-burst-investigation.md) | Synchronized 5k session-start burst load test at challenge open.    |
 
 ---
 

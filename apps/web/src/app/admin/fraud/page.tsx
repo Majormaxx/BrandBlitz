@@ -55,6 +55,8 @@ interface Pagination {
 type StatusFilter = "all" | "open" | "resolved" | "escalated";
 type ActionType = "resolved" | "escalated";
 
+const MAX_REASON_LENGTH = 500;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function statusVariant(
@@ -95,6 +97,9 @@ export default function AdminFraudPage() {
   const [dialogReason, setDialogReason] = useState("");
   const [dialogTargetIds, setDialogTargetIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  const isNearLimit = dialogReason.length >= MAX_REASON_LENGTH * 0.85;
+  const isAtLimit = dialogReason.length >= MAX_REASON_LENGTH;
 
   // ─── Auth guard ──────────────────────────────────────────────────────────
 
@@ -445,8 +450,24 @@ export default function AdminFraudPage() {
                   : "e.g. Needs manual account investigation"
               }
               value={dialogReason}
-              onChange={(e) => setDialogReason(e.target.value)}
+              maxLength={MAX_REASON_LENGTH}
+              onChange={(e) => {
+                if (e.target.value.length <= MAX_REASON_LENGTH) {
+                  setDialogReason(e.target.value);
+                }
+              }}
             />
+            <p
+              className={`mt-1 text-right text-xs transition-colors ${
+                isAtLimit
+                  ? "font-semibold text-red-600"
+                  : isNearLimit
+                    ? "font-medium text-amber-600"
+                    : "text-[var(--muted-foreground)]"
+              }`}
+            >
+              {dialogReason.length}/{MAX_REASON_LENGTH}
+            </p>
           </div>
           <DialogFooter>
             <Button
