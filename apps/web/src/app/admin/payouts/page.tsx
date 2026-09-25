@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { createApiClient } from "@/lib/api";
+import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -105,8 +106,9 @@ export default function AdminPayoutsPage() {
       const api = createApiClient(apiToken);
       await api.post(`/admin/payouts/${payoutId}/retry`);
       await loadPayouts(pagination.page);
+      toast.success("Payout retry submitted.");
     } catch {
-      // error toast already handled by api client
+      toast.error("Payout retry failed. Please try again.");
     } finally {
       setRetryingIds((prev) => {
         const next = new Set(prev);

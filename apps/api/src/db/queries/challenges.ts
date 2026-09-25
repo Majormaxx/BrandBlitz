@@ -33,6 +33,7 @@ export interface Challenge {
   reported_count: number;
   deleted_at: string | null;
   created_at: string;
+  challenge_license_id?: string | null;
 }
 
 export interface ChallengeQuestion {
@@ -42,7 +43,6 @@ export interface ChallengeQuestion {
   question_type: "which_brand" | "which_tagline" | "which_product";
   prompt_type: "logo" | "productImage1" | "tagline";
   question_text: string;
-  correct_answer: string;
   option_a: string;
   option_b: string;
   option_c: string;
@@ -57,11 +57,13 @@ export async function createChallenge(data: {
   poolAmountUsdc: string;
   maxPlayers?: number;
   endsAt?: string;
+  licenseId?: string;
 }): Promise<Challenge> {
   const result = await query<Challenge>(
     `INSERT INTO challenges
-       (brand_id, challenge_id, deposit_memo, pool_amount_stroops, max_players, ends_at)
-     VALUES ($1,$2,$3,$4,$5,$6)
+       (brand_id, challenge_id, deposit_memo, pool_amount_stroops, max_players, ends_at,
+        challenge_license_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
      RETURNING *, (pool_amount_stroops::numeric / 10000000)::numeric(20,7)::text AS pool_amount_usdc`,
     [
       data.brandId,
@@ -70,6 +72,7 @@ export async function createChallenge(data: {
       usdcToStroops(data.poolAmountUsdc),
       data.maxPlayers ?? null,
       data.endsAt ?? null,
+      data.licenseId ?? null,
     ]
   );
   return result.rows[0];
@@ -486,15 +489,14 @@ export async function insertChallengeQuestions(
     await query(
       `INSERT INTO challenge_questions
          (challenge_id, round, question_type, prompt_type, question_text,
-          correct_answer, option_a, option_b, option_c, option_d, correct_option)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+          option_a, option_b, option_c, option_d, correct_option)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
       [
         q.challenge_id,
         q.round,
         q.question_type,
         q.prompt_type,
         q.question_text,
-        q.correct_answer,
         q.option_a,
         q.option_b,
         q.option_c,
@@ -523,8 +525,8 @@ export async function insertChallengeQuestion(
   const result = await query<ChallengeQuestion>(
     `INSERT INTO challenge_questions
        (challenge_id, round, question_type, prompt_type, question_text,
-        correct_answer, option_a, option_b, option_c, option_d, correct_option)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        option_a, option_b, option_c, option_d, correct_option)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
      RETURNING *`,
     [
       question.challenge_id,
@@ -532,7 +534,6 @@ export async function insertChallengeQuestion(
       question.question_type,
       question.prompt_type,
       question.question_text,
-      question.correct_answer,
       question.option_a,
       question.option_b,
       question.option_c,
@@ -552,7 +553,10 @@ export async function incrementDepositConfirmations(
   challengeId: string,
   requiredConfirmations: number
 ): Promise<{ confirmations: number; activated: boolean }> {
-  const result = await query<{ deposit_confirmations: number; status: ChallengeStatus }>(
+  const result = await query<{
+    deposit_confirmations: number;
+    status: ChallengeStatus;
+  }>(
     `UPDATE challenges
      SET deposit_confirmations = LEAST(deposit_confirmations + 1, $2),
          status = CASE 

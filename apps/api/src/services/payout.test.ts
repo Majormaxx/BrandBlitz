@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   emitCounterMetric: vi.fn(),
   verifySessionHmac: vi.fn().mockReturnValue(true),
   metricsInc: vi.fn(),
+  getLicensePayoutTerms: vi.fn(),
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -43,6 +44,10 @@ vi.mock("../db/queries/payouts", () => ({
 
 vi.mock("../db/queries/users", () => ({
   incrementUserEarnings: mocks.incrementUserEarnings,
+}));
+
+vi.mock("../db/queries/challenge-licenses", () => ({
+  getLicensePayoutTerms: mocks.getLicensePayoutTerms,
 }));
 
 vi.mock("./referrals", () => ({
@@ -172,6 +177,7 @@ describe("processPayout", () => {
     );
     mocks.isRetriableStellarError.mockReturnValue(false);
     mocks.isInsufficientFeeError.mockReturnValue(false);
+    mocks.getLicensePayoutTerms.mockResolvedValue(null);
   });
 
   it("builds a non-empty recipients list from ranked winners", async () => {
@@ -204,6 +210,37 @@ describe("processPayout", () => {
     expect(recipients.map((r) => r.address)).toEqual([
       "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
       "GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBQ2",
+    ]);
+  });
+
+  it("splits a licensed challenge fee to the licensor through the payout batch", async () => {
+    mocks.getLicensePayoutTerms.mockResolvedValue({
+      fee_bps: 1000,
+      user_id: "licensor-user",
+      stellar_address: "GCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    });
+    mocks.getLeaderboard.mockResolvedValue([
+      buildLeaderboardSession({
+        user_id: "winner-user",
+        total_score: 300,
+        stellar_address: "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+      }),
+    ]);
+
+    await processPayout("challenge-1");
+
+    const [recipients] = mocks.submitBatchPayout.mock.calls[0] as [
+      Array<{ address: string; amount: string }>
+    ];
+    expect(recipients).toEqual([
+      {
+        address: "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+        amount: "81.0000000",
+      },
+      {
+        address: "GCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+        amount: "9.0000000",
+      },
     ]);
   });
 
